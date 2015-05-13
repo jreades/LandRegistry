@@ -31,7 +31,7 @@ import numpy as np
 import pylab as pl
 import psycopg2
 import subprocess
-#import pydot
+import pydot
 import datetime
 import urllib
 import gzip
@@ -82,9 +82,9 @@ except NameError:  # We are the main py2exe script, not a module
     import sys
     root = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-os.chdir('../../')
-etlroot = root.replace(os.getcwd(),'')
+#os.chdir('../../')
 approot = '.'
+etlroot = os.path.join(approot,'Code','ETL')
 
 # Load the Postgres conf file
 config = {}
@@ -169,9 +169,11 @@ if not os.path.isdir(os.path.join(approot,localPath)):
     os.mkdir(os.path.join(approot,localPath))
     
 if not os.path.exists(os.path.join(localPath, '.'.join([fn,'csv','gz']))):
-    print("Can't find local copy of " + '.'.join([fn,'csv','gz']) + " so will go ahead and download.")
+    print("Can't find local copy of " + '.'.join([fn,'csv','gz']) + " so will go ahead and download...")
     rf = urllib.URLopener()
     rf.retrieve(lrURL, os.path.join(localPath, '.'.join([fn,'csv'])))
+    print("Downloaded, starting on compression...")
+    
     # After downloading we can
     # compress the raw file	
     gz_out = gzip.open(os.path.join(localPath, '.'.join([fn,'csv','gz'])), 'wb')
@@ -179,6 +181,8 @@ if not os.path.exists(os.path.join(localPath, '.'.join([fn,'csv','gz']))):
     gz_out.writelines(fh_in)
     fh_in.close()
     gz_out.close()
+    print("Compressed via gzip.")
+    
 else:
     print("Skipping download as ??? already exists.".replace("???",'.'.join([fn,'csv','gz'])))
 
@@ -220,16 +224,21 @@ if not os.path.exists(os.path.join(localPath, '.'.join([fn,'formatted','csv'])))
     
     # Remove weird 2-byte chars before loading into PostgreSQL
 #    os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(localPath, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','-o',os.path.join(localPath, '.'.join([fn,'formatted','csv'])) ]))
-    os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(localPath, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','|','/usr/bin/uniq',os.path.join(localPath, '.'.join([fn,'formatted','csv'])) ]))
+    try:
+        os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(localPath, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','|','/usr/bin/uniq','>',os.path.join(localPath, '.'.join([fn,'formatted','csv'])) ]))
     
-    # Tidy up
-    os.remove(os.path.join(localPath, '.'.join([fn,'added','csv'])))
-    os.remove(os.path.join(localPath, '.'.join([fn,'csv'])))
+        # Tidy up
+        os.remove(os.path.join(localPath, '.'.join([fn,'added','csv'])))
+        os.remove(os.path.join(localPath, '.'.join([fn,'csv'])))
+    except: 
+        e = sys.exc_info()[0]
+        print("Possible problem fixing 2-byte characters or tidying up:" + e)
+    
 else:
     print("Found existing copy of ???".replace("???",'.'.join([fn,'formatted','csv'])))
     proceed = raw_input('Do you want me to overwrite this? [y/n]: ')
     if proceed=='y':
-        print("For now, you need to delete this manually before I can do anything")
+        print("For safety, you need to delete this manually before I can do anything")
         exit()
     else:
         print("Great, will go ahead using the existing file")
@@ -252,7 +261,7 @@ print("Have finished pre-processing data. Ready to load into Postgres DB.")
 # server, while the psql \copy runs as
 # the local user).
 q = " ".join(["\copy","landreg.loader_fct","FROM","".join(["'",os.path.join(approot,localPath,'.'.join([fn,'formatted','csv'])),"'"]),"WITH","DELIMITER '|'"])
-subprocess.call([''.join([psql_path,'psql']),'-h',config['host'],'-d',config['db'],'-U',config['user'],'-W',config['pwd'],'-p',config['port'],'-c',q])
+subprocess.call([''.join([psql_path,'psql']),'-h',config['host'],'-d',config['db'],'-U',config['user'],'-w','-p',config['port'],'-c',q])
 
 # Now we can bulk copy into the 
 # price_paid_fct -- but this is a 
@@ -260,6 +269,14 @@ subprocess.call([''.join([psql_path,'psql']),'-h',config['host'],'-d',config['db
 # to rebuild the indexes afterwards
 # (as this is much faster than inserting
 # while the indexes are active)
+
+# And now we can tidy up the last large files
+os.remove(os.path.join(localPath, '.'.join([fn,'formatted','csv'])))
+os.remove(os.path.join('tmp','table.csv'))
+
+# And now run the scripts to create the
+# relevant materialised views and subsidiary
+# tables.
 conn = psycopg2.connect(cn)
 
 # conn.cursor will return a cursor object, you can use this cursor to perform queries
