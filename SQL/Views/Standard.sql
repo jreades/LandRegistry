@@ -1,5 +1,5 @@
 -- DROP VIEW viz.ldn{}; 
-CREATE MATERIALIZED VIEW viz.ldn{} AS 
+CREATE MATERIALIZED VIEW viz.ldn{year} AS 
 SELECT pp.uid,
 	pp.yr,
 	pp.tid,
@@ -12,11 +12,11 @@ SELECT pp.uid,
  FROM 
  	viz.pp_transaction_spa pp,
 	inflation.hh_income_fct lf
-WHERE pp.yr = {} 
+WHERE pp.yr = {year} 
 	AND pp.yr = lf.year 
 	AND lf.metric_nm::text = 'Median'::text 
 	AND lf.region_nm::text = 'London'::text;
 ALTER TABLE viz.ldn{}
   OWNER TO postgres;
-GRANT SELECT ON TABLE viz.ldn{} TO public;
-GRANT ALL ON TABLE viz.ldn{} TO postgres;
+GRANT SELECT ON TABLE viz.ldn{year} TO public;
+GRANT ALL ON TABLE viz.ldn{year} TO postgres;
