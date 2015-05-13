@@ -31,7 +31,7 @@ import numpy as np
 import pylab as pl
 import psycopg2
 import subprocess
-import pydot
+#import pydot
 import datetime
 import urllib
 import gzip
@@ -77,16 +77,18 @@ def which(program):
 # Configure the application with the appropriate
 # details
 try:
-    approot = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(os.path.abspath(__file__))
 except NameError:  # We are the main py2exe script, not a module
     import sys
-    approot = os.path.dirname(os.path.abspath(sys.argv[0]))
+    root = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-approot = approot.replace('/ETL','')
+os.chdir('../../')
+etlroot = root.replace(os.getcwd(),'')
+approot = '.'
 
 # Load the Postgres conf file
 config = {}
-with open('/'.join([approot,".dbconfig"])) as myfile:
+with open(os.path.join(approot,'Code','.dbconfig')) as myfile:
     for line in myfile:
         name, var = line.partition("=")[::2]
         config[name.strip()] = var.strip().replace("'","")
@@ -161,10 +163,10 @@ except:
 # like we've already processed the
 # data by creating a compressed 
 # archive.
-localPath = 'data'
-if not os.path.isdir(localPath):
+localPath = 'Data'
+if not os.path.isdir(os.path.join(approot,localPath)):
     print "Creating data directory..."
-    os.mkdir(localPath)
+    os.mkdir(os.path.join(approot,localPath))
     
 if not os.path.exists(os.path.join(localPath, '.'.join([fn,'csv','gz']))):
     print("Can't find local copy of " + '.'.join([fn,'csv','gz']) + " so will go ahead and download.")
