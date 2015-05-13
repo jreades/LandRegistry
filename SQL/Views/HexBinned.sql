@@ -1,4 +1,4 @@
---DROP MATERIALIZED VIEW viz.hex{year}_{resolution}; 
+-- DROP MATERIALIZED VIEW viz.hex{year}_{resolution}; 
 CREATE MATERIALIZED VIEW viz.hex{year}_{resolution} AS 
 SELECT 
 	row_number() OVER() as id, 
@@ -13,14 +13,14 @@ SELECT
  	landreg.price_paid_fct pp,
 	inflation.hh_income_fct lf, 
 	osopen.hex_mapping_dim hd, 
-	osopen.hex_2500m h 
+	osopen.hex_750m h 
 WHERE extract(year from pp.completion_dt) = {year} 
 	AND lf.year = {year}
 	AND lf.metric_nm::text = 'Median'::text 
 	AND lf.region_nm::text = 'All households4'::text 
 --	AND pp.county_nm = 'GREATER LONDON'
 	AND pp.pc     = hd.pc 
-	AND hd.h2500m = h.gid 
+	AND hd.h750m = h.gid 
 GROUP BY yr, h.gid, lf.income_amt;
 ALTER TABLE viz.hex{year}_{resolution}
   OWNER TO postgres;

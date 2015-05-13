@@ -1,6 +1,8 @@
 """
 =========================================================
 Create views for each year of data in Hex Bin format
+Specify the resolution so ensure that the right bin
+format is used.
 =========================================================
 """
 print(__doc__)
@@ -34,7 +36,7 @@ def multiple_replace(dict, text):
   return regex.sub(lambda mo: dict[mo.string[mo.start():mo.end()]], text) 
 
 # Grab the SQL scripts that need to run
-subs = {'{resolution}': '{}m'.format{resolution}}
+subs = {'{resolution}': '{}m'.format(resolution)}
 
 q = ""
 with open("HexBinned.sql", 'r') as fh: 
@@ -60,5 +62,6 @@ for y in range(1996, 2013):
 	
 	conn.commit()
 	
+	conn.close()
 
-conn.close()
+

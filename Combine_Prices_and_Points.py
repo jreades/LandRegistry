@@ -6,12 +6,17 @@ within the OS Vector Map building outlines
 """
 print(__doc__)
 
-import numpy as np
-import psycopg2
-import pydot
 import csv
+from os import getcwd
+from os import chdir
 
-# The default string to connect to 
+import psycopg2
+
+
+cwd = getcwd()
+chdir('/'.join([cwd,'Code']))
+
+# The default string to connect to
 # Postgres database
 host = 'localhost'
 db   = 'LandReg'
@@ -35,7 +40,7 @@ for y in range(1995, 2014):
 	# retrieve the records from the database
 	locations = cursor.fetchall()
 
-	cursor.execute("select transaction_id, price_int, ppf.pc as pc from landreg.price_paid_fct as ppf, os.pc_mapping_dim as pmd where extract(year from ppf.completion_dt)={} and ppf.pc=pmd.pc and pmd.region='London'".format(y))
+	#cursor.execute("select transaction_id, price_int, ppf.pc as pc from landreg.price_paid_fct as ppf, os.pc_mapping_dim as pmd where extract(year from ppf.completion_dt)={} and ppf.pc=pmd.pc and pmd.region='London'".format(y))
 
 	transactions = cursor.fetchall()
 
