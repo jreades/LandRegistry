@@ -10,13 +10,22 @@ print(__doc__)
 
 # With environments like Entought Canopy you will probably
 # need to 'break out' of the environment briefly to run
+#
 # $ pip install 'psycopg2'
-# from the command line.
+#
+# from the command line. This works if you've allowed Canopy
+# to be the default, otherwise you need to specify the path 
+# something like the following: 
+#
+# $ /Users/XXX/Library/Enthought/Canopy_64bit/User/bin/pip install 'psycopg2' (XXX is your username)
+# $ /Users/XXX/Library/Enthought/Canopy_64bit/User/bin/pip install pyparsing==1.5.7
 #
 # On a Mac you may need to do the following to get psycopg2
-# to install: 
-# $ sudo mv /usr/lib/libpq.5.dylib /usr/lib/libpq.5.dylib.old  
-# $ sudo ln -s /Library/PostgreSQL/9.4/lib/libpq.5.dylib /usr/lib
+# to install:
+#
+# 1. Install libssl >= 1.0.0 (see 'Requirements' for script that seems to work)
+# 2. $ sudo mv /usr/lib/libpq.5.dylib /usr/lib/libpq.5.dylib.old  
+# 3. $ sudo ln -s /Library/PostgreSQL/9.3/lib/libpq.5.dylib /usr/lib
 
 import numpy as np
 import pylab as pl
@@ -33,7 +42,7 @@ import re
 from distutils import spawn
 from dateutil.relativedelta import relativedelta
 
-sys.path.append('/Library/PostgreSQL/9.3/bin/')
+#sys.path.append('/Library/PostgreSQL/9.3/bin/')
 psql_path = '/Library/PostgreSQL/9.3/bin/'
 
 def multiple_replace(dict, text): 
@@ -72,6 +81,8 @@ try:
 except NameError:  # We are the main py2exe script, not a module
     import sys
     approot = os.path.dirname(os.path.abspath(sys.argv[0]))
+
+approot = approot.replace('/ETL','')
 
 # Load the Postgres conf file
 config = {}
