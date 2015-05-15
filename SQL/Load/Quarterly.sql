@@ -1,5 +1,76 @@
 ﻿SET search_path = landreg, os, public;
 
+-- PC
+-- DROP MATERIALIZED VIEW IF EXISTS landreg.pc_quarterly_fct; 
+-- CREATE MATERIALIZED VIEW pc_quarterly_fct AS 
+-- SELECT  
+-- 	pc,
+-- 	property_type_cd, 
+-- 	extract(year from completion_dt) as completion_year, 
+-- 	ceil(extract(month from completion_dt)/3.0) as quarter, 
+-- 	count(price_int) as n,
+-- 	min(price_int) as min_price_int, 
+-- 	max(price_int) as max_price_int,
+-- 	sum(price_int) as sum_price_int, 
+-- 	avg(price_int) as avg_price_int, 
+-- 	quantile(price_int, 0.25) as lower_quartile, 
+-- 	quantile(price_int, 0.5) as median_price_int,
+-- 	quantile(price_int, 0.75) as upper_quartile, 
+-- 	stddev_samp(price_int) as sd_price_int, 
+-- 	var_samp(price_int) as var_price_int
+-- from 
+-- 	price_paid_fct ppf
+-- group by 
+-- 	pc, 
+-- 	property_type_cd, 
+-- 	completion_year, 
+-- 	quarter
+-- order by 
+-- 	pc, 
+-- 	property_type_cd, 
+-- 	completion_year, 
+-- 	quarter;
+-- ALTER TABLE pd_quarterly_fct ADD CONSTRAINT pdq_pkey PRIMARY KEY(pd, property_type_cd, completion_year, quarter);
+-- CREATE INDEX pdq_date_idx ON pd_quarterly_fct USING btree (completion_year, quarter);
+-- CREATE INDEX pdq_n_idx ON pd_quarterly_fct USING btree (n);
+-- CREATE INDEX pdq_pd_idx ON pd_quarterly_fct USING btree (pd COLLATE pg_catalog."default");
+-- CREATE INDEX pdq_property_idx ON pd_quarterly_fct USING btree (property_type_cd COLLATE pg_catalog."default");
+
+-- Local Authority
+DROP MATERIALIZED VIEW IF EXISTS landreg.la_quarterly_fct; 
+CREATE MATERIALIZED VIEW la_quarterly_fct AS 
+SELECT  
+	initcap(authority_nm) as authority_nm,
+	property_type_cd, 
+	extract(year from completion_dt) as completion_year, 
+	ceil(extract(month from completion_dt)/3.0) as quarter,  
+	count(price_int) as n,
+	min(price_int) as min_price_int, 
+	max(price_int) as max_price_int,
+	sum(price_int) as sum_price_int, 
+	avg(price_int) as avg_price_int, 
+	quantile(price_int, 0.25) as lower_quartile, 
+	quantile(price_int, 0.5) as median_price_int,
+	quantile(price_int, 0.75) as upper_quartile,  
+	stddev_samp(price_int) as sd_price_int, 
+	var_samp(price_int) as var_price_int 
+from 
+	price_paid_fct ppf, 
+	pc_mapping_dim pmd 
+where 
+	ppf.pc=pmd.pc
+group by 
+	authority_nm, 
+	property_type_cd, 
+	completion_year, 
+	quarter
+order by 
+	authority_nm, 
+	property_type_cd, 
+	completion_year, 
+	quarter;
+
+
 -- PD
 DROP MATERIALIZED VIEW IF EXISTS landreg.pd_quarterly_fct; 
 CREATE MATERIALIZED VIEW pd_quarterly_fct AS 

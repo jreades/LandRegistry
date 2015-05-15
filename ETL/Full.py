@@ -82,7 +82,7 @@ except NameError:  # We are the main py2exe script, not a module
     import sys
     root = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-#os.chdir('../../')
+os.chdir('../../')
 approot = '.'
 etlroot = os.path.join(approot,'Code','ETL')
 
@@ -232,7 +232,8 @@ if not os.path.exists(os.path.join(localPath, '.'.join([fn,'formatted','csv'])))
         os.remove(os.path.join(localPath, '.'.join([fn,'csv'])))
     except: 
         e = sys.exc_info()[0]
-        print("Possible problem fixing 2-byte characters or tidying up:" + e)
+        print("Possible problem fixing 2-byte characters or tidying up")
+        print e
     
 else:
     print("Found existing copy of ???".replace("???",'.'.join([fn,'formatted','csv'])))

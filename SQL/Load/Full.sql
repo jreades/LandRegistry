@@ -4,7 +4,7 @@ SET search_path TO landreg, public;
 -- Check for duplicates in the loader_fct
 -- 
 DELETE FROM loader_fct t 
-WHERE EXISTS (SELECT 1 FROM loader_fct t1 WHERE t1.transaction_id = t.transaction_id AND t1.ctid > t.ctid)
+WHERE EXISTS (SELECT 1 FROM loader_fct t1 WHERE t1.transaction_id = t.transaction_id AND t1.ctid > t.ctid);
 
 --
 -- Remove constraints and indexes prior to bulk load
