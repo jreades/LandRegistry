@@ -54,11 +54,32 @@ def multiple_replace(dict, text):
 subs = {'{resolution}': '{}m'.format(resolution)}
 
 q = ""
-with open(os.path.join(approot,"SQL","Views","HexBinned.sql"), 'r') as fh: 
+with open(os.path.join(approot,"SQL","Views","RegionalHexBinned.sql"), 'r') as fh: 
 	q = fh.read()
 
+conn = psycopg2.connect(cn)
 
-for y in range(1996, 2016): 
+# conn.cursor will return a cursor object, you can use this cursor to perform queries
+cursor = conn.cursor()
+	
+#print multiple_replace(subs, q)
+
+# execute our Query
+#print multiple_replace(subs, q).replace("\\n","\n")
+#cursor.execute("SELECT DISTINCT(initcap(region_nm)) FROM inflation.hh_income_fct WHERE region_nm NOT IN ('All households4','Northern Ireland','Scotland')")
+cursor.execute("SELECT distinct(region_nm) FROM inflation.hh_income_fct WHERE region_nm LIKE 'Yorkshire%'")
+rows = cursor.fetchall()
+	
+conn.close()
+
+for r in range(0, len(rows)): 
+    
+    region = rows[r][0]
+    print(region)
+    subs['{region_nm}'] = region
+    subs['{region}'] = region.replace(" ","_").replace("-","_")
+
+    for y in range(1996, 2016, 4): 
 
 	print("Year {}".format(y))
 	subs['{year}'] = str(y)
@@ -68,8 +89,6 @@ for y in range(1996, 2016):
 
 	# conn.cursor will return a cursor object, you can use this cursor to perform queries
 	cursor = conn.cursor()
-	
-	#print multiple_replace(subs, q)
 
 	# execute our Query
 	#print multiple_replace(subs, q).replace("\\n","\n")

@@ -1,5 +1,5 @@
-DROP MATERIALIZED VIEW IF EXISTS viz.hex{year}_{resolution}; 
-CREATE MATERIALIZED VIEW viz.hex{year}_{resolution} AS 
+DROP MATERIALIZED VIEW IF EXISTS viz.hex_{region}_{year}_{resolution}; 
+CREATE MATERIALIZED VIEW viz.hex_{region}_{year}_{resolution} AS 
 SELECT 
 	row_number() OVER() as id, 
 	extract(year from pp.completion_dt) as yr,
@@ -15,14 +15,14 @@ SELECT
 	osopen.hex_mapping_dim hd, 
 	osopen.hex_750m h 
 WHERE extract(year from pp.completion_dt) = {year} 
-	AND lf.year = {year}
+	AND lf.year   = {year}
 	AND lf.metric_nm::text = 'Median'::text 
-	AND lf.region_nm::text = 'All households4'::text 
---	AND pp.county_nm = 'GREATER LONDON'
+	AND lf.region_nm::text = '{region_nm}'::text 
 	AND pp.pc     = hd.pc 
-	AND hd.h750m = h.gid 
+	AND hd.region = '{region_nm}' 
+	AND hd.h750m  = h.gid 
 GROUP BY yr, h.gid, lf.income_amt;
-ALTER TABLE viz.hex{year}_{resolution}
+ALTER TABLE viz.hex_{region}_{year}_{resolution}
   OWNER TO postgres;
-GRANT SELECT ON TABLE viz.hex{year}_{resolution} TO public;
-GRANT ALL ON TABLE viz.hex{year}_{resolution} TO postgres;
+GRANT SELECT ON TABLE viz.hex_{region}_{year}_{resolution} TO public;
+GRANT ALL ON TABLE viz.hex_{region}_{year}_{resolution} TO postgres;
