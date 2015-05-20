@@ -28,6 +28,10 @@ def read_sql(path):
 
 #########################
 # Interpolate SQL queries 
+#
+# Would be good if you had the option to return a list 
+# of SQL queries so that you could execute each
+# in turn. That would make debugging easier.
 def get_sql(path, subs={'foobarbaz':None}, openc='{', closec='}'):
     """Interpolates parameterised SQL using a dictionary expecting to find '{{var}}' 
     in the SQL query and to have a value for each substitution."""
