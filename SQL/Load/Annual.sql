@@ -31,7 +31,7 @@ SET search_path TO landreg, os, public;
 
 -- Local Authority
 DROP MATERIALIZED VIEW IF EXISTS landreg.la_annual_fct; 
-CREATE MATERIALIZED VIEW la_annual_fct AS 
+CREATE MATERIALIZED VIEW landreg.la_annual_fct AS 
 SELECT 
 	initcap(authority_nm) as authority_nm, 
 	property_type_cd, 
@@ -59,7 +59,7 @@ ORDER BY
 ;
 
 -- DROP MATERIALIZED VIEW IF EXISTS landreg.pd2_annual_fct; 
--- CREATE MATERIALIZED VIEW pd2_annual_fct AS 
+-- CREATE MATERIALIZED VIEW landreg.pd2_annual_fct AS 
 -- SELECT 
 -- 	pd2, 
 -- 	property_type_cd, 
@@ -90,7 +90,7 @@ ORDER BY
 -- ;
 
 DROP MATERIALIZED VIEW IF EXISTS landreg.pd1_annual_fct; 
-CREATE MATERIALIZED VIEW pd1_annual_fct AS 
+CREATE MATERIALIZED VIEW landreg.pd1_annual_fct AS 
 SELECT 
 	pd1, 
 	property_type_cd, 
@@ -121,7 +121,7 @@ ORDER BY
 ;
 
 DROP MATERIALIZED VIEW IF EXISTS landreg.pd_annual_fct; 
-CREATE MATERIALIZED VIEW pd_annual_fct AS 
+CREATE MATERIALIZED VIEW landreg.pd_annual_fct AS 
 SELECT 
 	pd, 
 	property_type_cd, 
@@ -152,7 +152,7 @@ ORDER BY
 ;
 
 -- DROP MATERIALIZED VIEW IF EXISTS landreg.pca_annual_fct; 
--- CREATE MATERIALIZED VIEW pca_annual_fct AS 
+-- CREATE MATERIALIZED VIEW landreg.pca_annual_fct AS 
 -- SELECT 
 -- 	pca, 
 -- 	property_type_cd, 
@@ -184,7 +184,7 @@ ORDER BY
 
 -- Region
 DROP MATERIALIZED VIEW IF EXISTS landreg.region_annual_fct; 
-CREATE MATERIALIZED VIEW region_annual_fct AS 
+CREATE MATERIALIZED VIEW landreg.region_annual_fct AS 
 SELECT  
 	region, 
 	property_type_cd, 
@@ -220,7 +220,7 @@ order by
 
 -- Postcode
 -- DROP MATERIALIZED VIEW IF EXISTS landreg.pc_annual_change_fct; 
--- CREATE MATERIALIZED VIEW pc_annual_change_fct AS 
+-- CREATE MATERIALIZED VIEW landreg.pc_annual_change_fct AS 
 -- SELECT 
 -- 	pc,
 -- 	extract(year FROM completion_dt) AS completion_year,  
@@ -246,7 +246,7 @@ order by
 
 -- Local Authority
 DROP MATERIALIZED VIEW IF EXISTS landreg.la_annual_change_fct; 
-CREATE MATERIALIZED VIEW la_annual_change_fct AS 
+CREATE MATERIALIZED VIEW landreg.la_annual_change_fct AS 
 SELECT 
 	initcap(authority_nm) as authority_nm,
 	extract(year FROM completion_dt) AS completion_year,  
@@ -271,7 +271,7 @@ ORDER BY
 ;
 
 -- DROP MATERIALIZED VIEW IF EXISTS landreg.pd2_annual_change_fct; 
--- CREATE MATERIALIZED VIEW pd2_annual_change_fct AS 
+-- CREATE MATERIALIZED VIEW landreg.pd2_annual_change_fct AS 
 -- SELECT 
 -- 	pd2,
 -- 	extract(year FROM completion_dt) AS completion_year,  
@@ -299,7 +299,7 @@ ORDER BY
 -- ;
 
 DROP MATERIALIZED VIEW IF EXISTS landreg.pd1_annual_change_fct; 
-CREATE MATERIALIZED VIEW pd1_annual_change_fct AS 
+CREATE MATERIALIZED VIEW landreg.pd1_annual_change_fct AS 
 SELECT 
 	pd1,
 	extract(year FROM completion_dt) AS completion_year,  
@@ -327,7 +327,7 @@ ORDER BY
 ;
 
 DROP MATERIALIZED VIEW IF EXISTS landreg.pd_annual_change_fct; 
-CREATE MATERIALIZED VIEW pd_annual_change_fct AS 
+CREATE MATERIALIZED VIEW landreg.pd_annual_change_fct AS 
 SELECT 
 	pd,
 	extract(year FROM completion_dt) AS completion_year,  
@@ -355,7 +355,7 @@ ORDER BY
 ;
 
 -- DROP MATERIALIZED VIEW IF EXISTS landreg.pca_annual_change_fct; 
--- CREATE MATERIALIZED VIEW pca_annual_change_fct AS 
+-- CREATE MATERIALIZED VIEW landreg.pca_annual_change_fct AS 
 -- SELECT 
 -- 	pca,
 -- 	extract(year FROM completion_dt) AS completion_year,  
@@ -384,7 +384,7 @@ ORDER BY
 
 -- Region
 DROP MATERIALIZED VIEW IF EXISTS landreg.region_annual_change_fct; 
-CREATE MATERIALIZED VIEW region_annual_change_fct AS 
+CREATE MATERIALIZED VIEW landreg.region_annual_change_fct AS 
 SELECT  
 	region,
 	extract(year from completion_dt) as completion_year,  
@@ -417,7 +417,7 @@ order by
 -- it's easy to calculate change in one go.
 -- 
 DROP MATERIALIZED VIEW IF EXISTS landreg.pd_year_on_year_fct; 
-CREATE MATERIALIZED VIEW pd_year_on_year_fct AS 
+CREATE MATERIALIZED VIEW landreg.pd_year_on_year_fct AS 
 SELECT 
 	p.gid, 
 	p.pd, 
