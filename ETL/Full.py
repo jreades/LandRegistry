@@ -45,17 +45,6 @@ from dateutil.relativedelta import relativedelta
 #sys.path.append('/Library/PostgreSQL/9.3/bin/')
 psql_path = '/Library/PostgreSQL/9.3/bin/'
 
-def multiple_replace(dict, text): 
-
-  """ Replace in 'text' all occurences of any key in the given
-  dictionary by its corresponding value.  Returns the new tring.""" 
-
-  # Create a regular expression  from the dictionary keys
-  regex = re.compile("(%s)" % "|".join(map(re.escape, dict.keys())))
-
-  # For each match, look-up corresponding value in dictionary
-  return regex.sub(lambda mo: dict[mo.string[mo.start():mo.end()]], text) 
-
 def which(program):
     import os
     def is_exe(fpath):
@@ -278,6 +267,9 @@ os.remove(os.path.join('tmp','table.csv'))
 # And now run the scripts to create the
 # relevant materialised views and subsidiary
 # tables.
+
+import utils
+
 conn = psycopg2.connect(cn)
 
 # conn.cursor will return a cursor object, you can use this cursor to perform queries
