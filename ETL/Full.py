@@ -38,6 +38,7 @@ import gzip
 import csv
 import os
 import re
+import utils
 
 from distutils import spawn
 from dateutil.relativedelta import relativedelta
@@ -253,6 +254,12 @@ print("Have finished pre-processing data. Ready to load into Postgres DB.")
 q = " ".join(["\copy","landreg.loader_fct","FROM","".join(["'",os.path.join(approot,localPath,'.'.join([fn,'formatted','csv'])),"'"]),"WITH","DELIMITER '|'"])
 subprocess.call([''.join([psql_path,'psql']),'-h',config['host'],'-d',config['db'],'-U',config['user'],'-w','-p',config['port'],'-c',q])
 
+# And now we can tidy up the last large files
+os.remove(os.path.join(localPath, '.'.join([fn,'formatted','csv'])))
+os.remove(os.path.join('tmp','table.csv'))
+
+#############################
+#############################
 # Now we can bulk copy into the 
 # price_paid_fct -- but this is a 
 # little trickier since we will need
@@ -260,21 +267,28 @@ subprocess.call([''.join([psql_path,'psql']),'-h',config['host'],'-d',config['db
 # (as this is much faster than inserting
 # while the indexes are active)
 
-# And now we can tidy up the last large files
-os.remove(os.path.join(localPath, '.'.join([fn,'formatted','csv'])))
-os.remove(os.path.join('tmp','table.csv'))
+# Update the Price Paid Fact -- this is the 
+# big one to do, so try to avoid re-running
+# this unless absolutely necessary.
+conn = psycopg2.connect(cn)
+update_ppf = get_sql(os.path.join(approot,'Code','SQL','Load','Full.sql'))
+cursor = conn.cursor()
+proceed = raw_input('Do you want me to overwrite the entire price paid fact? [y/n]: ')
+if proceed=='y':
+    cursor.execute(update_ppf)
+conn.close()
 
 # And now run the scripts to create the
 # relevant materialised views and subsidiary
 # tables.
-
-import utils
-
 conn = psycopg2.connect(cn)
-
-# conn.cursor will return a cursor object, you can use this cursor to perform queries
 cursor = conn.cursor()
-
-# Find the max date in the main
-# table of schema
-cursor.execute("SELECT max(completion_dt) FROM landreg.price_paid_fct")
+proceed = raw_input('Do you want me to rebuild the aggregate views? [y/n]: ')
+if proceed=='y':
+    print "Rebuilding annual views..."
+    #annual_views = utils.get_sql(os.path.join(approot,'Code','SQL','Load','Annual.sql'))
+    #cursor.execute(annual_views)
+    print "Rebuilding monthly views..."
+    #monthly_views = utils.get_sql(os.path.join(approot,'Code','SQL','Load','Monthly.sql'))
+    #cursor.execute(monthly_views)
+conn.close()
