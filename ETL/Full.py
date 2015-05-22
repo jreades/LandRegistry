@@ -289,6 +289,6 @@ if proceed=='y':
     #annual_views = utils.get_sql(os.path.join(approot,'Code','SQL','Load','Annual.sql'))
     #cursor.execute(annual_views)
     print "Rebuilding monthly views..."
-    #monthly_views = utils.get_sql(os.path.join(approot,'Code','SQL','Load','Monthly.sql'))
-    #cursor.execute(monthly_views)
+    quaterly_views = utils.get_sql(os.path.join(approot,'Code','SQL','Load','Quarterly.sql'))
+    cursor.execute(quaterly_views)
 conn.close()

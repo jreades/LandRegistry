@@ -1,4 +1,4 @@
-﻿SET search_path = landreg, os, public;
+SET search_path = landreg, os, public;
 
 -- PC
 -- DROP MATERIALIZED VIEW IF EXISTS landreg.pc_quarterly_fct; 
