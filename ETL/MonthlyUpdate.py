@@ -8,60 +8,51 @@ update the core and aggregate tables in the 'warehouse'
 """
 print(__doc__)
 
-import numpy as np
-import pylab as pl
 import psycopg2
-import pydot
 import datetime
-import urllib
 import gzip
 import csv
 import os
+import petl as etl
+import utils
 
-from dateutil.relativedelta import relativedelta
-
-# The key! We work by year so that
-# we don't have to try to grab bits
-# and pieces incrementally.
-year = 2014
+from petl import look
 
 # Set the default filename that
 # we'll be working with until it's
 # all in the database
-fn   = '-'.join(["pp",str(year)])
+today = datetime.date.today() - datetime.timedelta(weeks=8)
 
-# The default string to connect to 
-# Postgres database
-host = 'localhost'
-db   = 'LandReg'
-user = ''
-pwd  = ''
-port = ''
-cn   = "host='{0}' dbname='{1}' user='{2}' password='{3}' port={4}".format(host, db, user, pwd, port)
+# Place to store the data locally
+fn   = '-'.join(["pp",str(today.year),str(today.month).zfill(2)])
 
-############################
-############################
-# First we have to get the maximum
-# date that is already *in* the db
+# Path to Postgres functions
+psql_path = '/Library/PostgreSQL/9.3/bin/'
 
-# Get a connection, if a connect cannot be made an exception will be raised here
-conn = psycopg2.connect(cn)
+# Configure the application with the appropriate
+# details
+try:
+    root = os.path.dirname(os.path.abspath(__file__))
+except NameError:  # We are the main py2exe script, not a module
+    import sys
+    root = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-# conn.cursor will return a cursor object, you can use this cursor to perform queries
-cursor = conn.cursor()
+approot = root.replace('/Code/ETL','')
+etlroot = os.path.join(approot,'Code','ETL')
+datroot = os.path.join(approot,'Data')
+os.chdir(approot)
 
-# Find the max date in the main 
-# table of schema
-cursor.execute("SELECT max(completion_dt) FROM landreg.price_paid_fct")
+# Load the Postgres conf file
+config = {}
+with open(os.path.join(approot,'Code','.dbconfig')) as myfile:
+    for line in myfile:
+        name, var = line.partition("=")[::2]
+        config[name.strip()] = var.strip().replace("'","")
 
-# retrieve it from the database
-rs = cursor.fetchall()
-ts = rs[0][0]
-print("Maximum loaded date is ?.".replace("?",ts.strftime("%Y-%m-%d")))
+cn   = "host='{0}' dbname='{1}' user='{2}' password='{3}' port={4}".format(config['host'], config['db'], config['user'], config['pwd'], config['port'])
 
-# And close the connection so that
-# it doesn't go stale
-conn.close()
+# Where is the data stored remotely?
+lrURL = "http://publicdata.landregistry.gov.uk/market-trend-data/price-paid-data/a/pp-monthly-update-new-version.csv"
 
 ############################
 ############################
@@ -74,80 +65,68 @@ conn.close()
 # like we've already processed the
 # data by creating a compressed 
 # archive.
-if not os.path.exists('.'.join([fn,'csv','gz'])): 
-	rf = urllib.URLopener()
-	rf.retrieve("http://publicdata.landregistry.gov.uk/market-trend-data/price-paid-data/b/pp-2014.csv", '.'.join([fn,'csv']))
-	# After downloading we can
-	# compress the raw file
-	gz_out = gzip.open('.'.join([fn,'csv','gz']), 'wb')
-	fh_in  = open('.'.join([fn,'csv']), 'rb')
-	gz_out.writelines(fh_in)
-	fh_in.close()
-	gz_out.close()
+if not os.path.isdir(datroot):
+    print "Creating data directory..."
+    os.mkdir(datroot)
+
+if os.path.exists(os.path.join(datroot,'-'.join([fn,'Added.csv.gz']))):
+    prompt  = 'Found file {} should I proceed [y/n]: '.format('-'.join([fn,'Added.csv.gz']))
+    proceed = raw_input(prompt)
+    
+    if proceed=='y': 
+        print("OK, will continue to load the data.")
+    else:
+        print("OK, stopping.")
+        exit()
+
+########################
+########################
+# Use the PETL syntax to accomplish the following:
+# 1. Create a new source table linked to the remote CSV file and give it a header
+# 2. Apply some simple transforms to fields in the CSV file
+# 3. Do some basic checks and counts to help the user understand what's likely to happen
+# 4. Prompt for the process to continue or stop
+
+# Create the source and give it headers since Land Registry don't
+src  = etl.pushheader(etl.io.fromcsv(lrURL), ['transaction_id','price_int','completion_dt','pc','property_type_cd','new_build_cd','tenure_cd','paon','saon','street_nm','locality_nm','town_nm','authority_nm','county_nm','status_cd'])
+# Tidy up some of the fields so that they're db-friendly
+#tidy = convert( convert( convert( convert( src, 'transaction_id','replace','{',''), 'transaction_id','replace','}',''), 'completion_dt','replace',' 00:00'), 'price_int',int)
+tidy = src.convert('transaction_id','replace','{','').convert('transaction_id','replace','}','').convert('price_int',int).convert('completion_dt',lambda v: datetime.datetime.strptime(v, "%Y-%m-%d 00:00").date()).sort('completion_dt')
+
+# Summarise what's there (helpful for tracking
+# changes to the format, especially the status codes).
+print "There are {} rows of data.".format(etl.util.counting.nrows(tidy))
+counts = etl.util.counting.valuecounts(tidy, 'status_cd')
+print "I found the following record types and counts:"
+print counts
+confs  = etl.conflicts(tidy, key='transaction_id')
+if confs.nrows() > 0:
+    print "I found the following conflicts:"
+    print confs
 else:
-	print("Skipping download as ??? already exists.".replace("???",'.'.join([fn,'csv','gz'])))
+    print "I found no conflicting Transaction IDs"  
 
+proceed = raw_input('Given these stats should I proceed with the processing [y/n]: ')
+if proceed=='y': 
+    print("OK, will load the latest data.")
+else:
+    print("OK, stopping.")
+    exit()
 
-# Now clean the data by removing 
-# useless artefacts and checking for
-# simple problems. Also use our max 
-# date from above to strip out anything
-# that precedes our cut-off by more than
-# two months (because you can have 
-# transactions filter through for some 
-# time!).
-td = ts + relativedelta(months=-2)
+etl.csv.totsv(tidy.selecteq('status_cd','A'), source=os.path.join(datroot,'-'.join([fn,'Added.csv.gz'])), encoding='UTF-8', write_header=True)
+etl.csv.totsv(tidy.selecteq('status_cd','D'), source=os.path.join(datroot,'-'.join([fn,'Deleted.csv.gz'])), encoding='UTF-8', write_header=True)
+etl.csv.totsv(tidy.selecteq('status_cd','C'), source=os.path.join(datroot,'-'.join([fn,'Changed.csv.gz'])), encoding='UTF-8', write_header=True)
 
-afh = open('.'.join([fn,'added','csv'])
-cfh = open('.'.join([fn,'changed','csv'])
-dfh = open('.'.join([fn,'deleted','csv'])
-
-added   = csv.writer(afh, 'wb'), delimiter="|", quotechar='"', quoting=csv.QUOTE_MINIMAL)
-changed = csv.writer(cfh, 'wb'), delimiter="|", quotechar='"', quoting=csv.QUOTE_MINIMAL)
-deleted = csv.writer(dfh, 'wb'), delimiter="|", quotechar='"', quoting=csv.QUOTE_MINIMAL)
-
-with gzip.open('.'.join([fn,'csv','gz']), 'rb') as fh_in:
-	csv_in = csv.reader(fh_in, delimiter=',', quotechar='"')
-	# While reading...
-	for row in csv_in:
-		# Strip off { and } from identifier
-		row[0] = row[0].replace("{","").replace("}","")
-		# What type or record is it?
-		r_type = row[-1]
-		# Skip record if not greater
-		if r_type == 'A':
-			# Added
-			# Note: there's no point filtering out
-			# duplicates based on the date of the 
-			# last transaction because old records
-			# show up all the time.
-			added.writerow(row)
-		elif r_type == 'C':
-			# Changed
-			changed.writerow(row)
-		elif r_type == 'D':
-			# Deleted
-			deleted.writerow(row[0])
-
-afh.flush()
-cfh.flush()
-dfh.flush()
-afh.close()
-cfh.close()
-dfh.close()
+# Things can get a little slow if we don't tidy up
+# the PETL tables when we're done...
+del(src)
+del(tidy) 
 
 # Remove weird 2-byte chars before loading into PostgreSQL
-os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",'.'.join([fn,'added','csv']),'|','/usr/bin/sort','-t','"|"','-k 3,3','-o','.'.join([fn,'added','formatted','csv']) ]))
-os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",'.'.join([fn,'changed','csv']),'|','/usr/bin/sort','-t','"|"','-k 3,3','-o','.'.join([fn,'changed','formatted','csv']) ]))
-
-# Tidy up
-os.remove('.'.join([fn,'added','csv']))
-os.remove('.'.join([fn,'changed','csv']))
-os.remove('.'.join([fn,'added','csv']))
-os.remove('.'.join([fn,'csv']))
+#os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",'.'.join([fn,'added','csv']),'|','/usr/bin/sort','-t','"|"','-k 3,3','-o','.'.join([fn,'added','formatted','csv']) ]))
 
 # Update user
-print("Having finished pre-processing data. Ready to load into Postgres DB.")
+print "Having finished pre-processing data. Ready to load into Postgres DB."
 
 ############################
 ############################
@@ -158,21 +137,38 @@ print("Having finished pre-processing data. Ready to load into Postgres DB.")
 # table and then copying it over from
 # there.
 
-# Get a connection, if a connect cannot be made an exception will be raised here
+# It seems that we need to delete records
+# first -- Land Registry isn't actually clear
+# on whether Changes or Deletes need to run
+# first. I assume that Additions come last.
+proceed = raw_input('Do you want me to delete records from the price paid fact? [y/n]: ')
+if proceed=='y': 
+    
+    conn = psycopg2.connect(cn)
+    cur  = conn.cursor()
+    
+    update_ppf = utils.get_sql(os.path.join(approot,'Code','SQL','Update','Delete.sql'))
+    
+    #cur.prepare(update_ppf.replace('{tid}','%s'))
+    q = update_ppf.replace("'{tid}'", '%s')
+    
+    with gzip.open(os.path.join(datroot, '-'.join([fn,'Deleted.csv.gz'])), 'r') as f:
+        csv_in = csv.reader(f, delimiter='\t', quotechar='"')
+        # While reading...
+        for row in csv_in:
+            # Grab tid
+            #print update_ppf.replace('{tid}',row[0])
+            cur.execute(q,[row[0]])
+            print cur.statusmessage
+    
+    conn.commit() 
+    
+    conn.close()
+
+print "Deletions complete..."
+
 conn = psycopg2.connect(cn)
-
-# conn.cursor will return a cursor object, you can use this cursor to perform queries
-cursor = conn.cursor()
-
-# Find the max date in the main 
-# table of schema
-cursor.execute("SELECT max(completion_dt) FROM landreg.price_paid_fct")
-
-# retrieve it from the database
-rs = cursor.fetchall()
-ts = rs[0][0].strftime("%Y-%m-%d")
-
-# And close the connection so that
-# it doesn't go stale
+utils.vacuum(conn, 'landreg.price_paid_fct')
 conn.close()
 
+print "Vacuuming complete..."

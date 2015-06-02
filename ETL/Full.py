@@ -72,9 +72,10 @@ except NameError:  # We are the main py2exe script, not a module
     import sys
     root = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-os.chdir('../../')
-approot = '.'
+os.chdir(root.replace('/Code/ETL',''))
+approot = os.chdir(root.replace('/Code/ETL',''))
 etlroot = os.path.join(approot,'Code','ETL')
+datroot = os.path.join(approot,'Data')
 
 # Load the Postgres conf file
 config = {}
@@ -153,21 +154,20 @@ except:
 # like we've already processed the
 # data by creating a compressed 
 # archive.
-localPath = 'Data'
-if not os.path.isdir(os.path.join(approot,localPath)):
+if not os.path.isdir(datroot):
     print "Creating data directory..."
-    os.mkdir(os.path.join(approot,localPath))
+    os.mkdir(datroot)
     
-if not os.path.exists(os.path.join(localPath, '.'.join([fn,'csv','gz']))):
+if not os.path.exists(os.path.join(datroot, '.'.join([fn,'csv','gz']))):
     print("Can't find local copy of " + '.'.join([fn,'csv','gz']) + " so will go ahead and download...")
     rf = urllib.URLopener()
-    rf.retrieve(lrURL, os.path.join(localPath, '.'.join([fn,'csv'])))
+    rf.retrieve(lrURL, os.path.join(datroot, '.'.join([fn,'csv'])))
     print("Downloaded, starting on compression...")
     
     # After downloading we can
     # compress the raw file	
-    gz_out = gzip.open(os.path.join(localPath, '.'.join([fn,'csv','gz'])), 'wb')
-    fh_in  = open(os.path.join(localPath, '.'.join([fn,'csv'])), 'rb')
+    gz_out = gzip.open(os.path.join(datroot, '.'.join([fn,'csv','gz'])), 'wb')
+    fh_in  = open(os.path.join(datroot, '.'.join([fn,'csv'])), 'rb')
     gz_out.writelines(fh_in)
     fh_in.close()
     gz_out.close()
@@ -177,11 +177,11 @@ else:
     print("Skipping download as ??? already exists.".replace("???",'.'.join([fn,'csv','gz'])))
 
 
-if not os.path.exists(os.path.join(localPath, '.'.join([fn,'formatted','csv']))):
-    afh = open(os.path.join(localPath, '.'.join([fn,'added','csv'])), 'w+')
+if not os.path.exists(os.path.join(datroot, '.'.join([fn,'formatted','csv']))):
+    afh = open(os.path.join(datroot, '.'.join([fn,'added','csv'])), 'w+')
     added = csv.writer(afh, delimiter="|", quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
-    with gzip.open(os.path.join(localPath, '.'.join([fn,'csv','gz'])), 'rb') as fh_in:
+    with gzip.open(os.path.join(datroot, '.'.join([fn,'csv','gz'])), 'rb') as fh_in:
         csv_in = csv.reader(fh_in, delimiter=',', quotechar='"')
         # While reading...
         for row in csv_in:
@@ -199,11 +199,11 @@ if not os.path.exists(os.path.join(localPath, '.'.join([fn,'formatted','csv'])))
 	       added.writerow(row)
 	   elif r_type == 'C':
 	       # Changed
-	       print("Found changed record ('C'), which should be in full Price Paid file: " + row[0])
+	       print("Found changed record ('C'), which shouldn't be in full Price Paid file: " + row[0])
 	       exit()
 	   elif r_type == 'D':
 	       # Deleted
-	       print("Found deleted record ('D'), which should be in full Price Paid file: " + row[0])
+	       print("Found deleted record ('D'), which shouldn't be in full Price Paid file: " + row[0])
 	       exit()
 	   else:
 	       print("Unexpected record type ('" + r_type + "') in full Price Paid file: " + row[0])
@@ -215,11 +215,11 @@ if not os.path.exists(os.path.join(localPath, '.'.join([fn,'formatted','csv'])))
     # Remove weird 2-byte chars before loading into PostgreSQL
 #    os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(localPath, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','-o',os.path.join(localPath, '.'.join([fn,'formatted','csv'])) ]))
     try:
-        os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(localPath, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','|','/usr/bin/uniq','>',os.path.join(localPath, '.'.join([fn,'formatted','csv'])) ]))
+        os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(datroot, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','|','/usr/bin/uniq','>',os.path.join(datroot, '.'.join([fn,'formatted','csv'])) ]))
     
         # Tidy up
-        os.remove(os.path.join(localPath, '.'.join([fn,'added','csv'])))
-        os.remove(os.path.join(localPath, '.'.join([fn,'csv'])))
+        os.remove(os.path.join(datroot, '.'.join([fn,'added','csv'])))
+        os.remove(os.path.join(datroot, '.'.join([fn,'csv'])))
     except: 
         e = sys.exc_info()[0]
         print("Possible problem fixing 2-byte characters or tidying up")
@@ -251,11 +251,11 @@ print("Have finished pre-processing data. Ready to load into Postgres DB.")
 # a permissions issue (COPY runs as the 
 # server, while the psql \copy runs as
 # the local user).
-q = " ".join(["\copy","landreg.loader_fct","FROM","".join(["'",os.path.join(approot,localPath,'.'.join([fn,'formatted','csv'])),"'"]),"WITH","DELIMITER '|'"])
+q = " ".join(["\copy","landreg.loader_fct","FROM","".join(["'",os.path.join(datroot,'.'.join([fn,'formatted','csv'])),"'"]),"WITH","DELIMITER '|'"])
 subprocess.call([''.join([psql_path,'psql']),'-h',config['host'],'-d',config['db'],'-U',config['user'],'-w','-p',config['port'],'-c',q])
 
 # And now we can tidy up the last large files
-os.remove(os.path.join(localPath, '.'.join([fn,'formatted','csv'])))
+os.remove(os.path.join(datroot, '.'.join([fn,'formatted','csv'])))
 os.remove(os.path.join('tmp','table.csv'))
 
 #############################
@@ -286,9 +286,11 @@ cursor = conn.cursor()
 proceed = raw_input('Do you want me to rebuild the aggregate views? [y/n]: ')
 if proceed=='y':
     print "Rebuilding annual views..."
-    #annual_views = utils.get_sql(os.path.join(approot,'Code','SQL','Load','Annual.sql'))
-    #cursor.execute(annual_views)
+    annual_views = utils.get_sql(os.path.join(approot,'Code','SQL','Load','Annual.sql'))
+    #print annual_views
+    cursor.execute(annual_views)
     print "Rebuilding monthly views..."
     quaterly_views = utils.get_sql(os.path.join(approot,'Code','SQL','Load','Quarterly.sql'))
+    #print quarterly_views
     cursor.execute(quaterly_views)
 conn.close()

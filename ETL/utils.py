@@ -44,3 +44,19 @@ def get_sql(path, subs={'foobarbaz':None}, openc='{', closec='}'):
     query = multiple_replace(subs, sql).replace("\n"," ").replace("\t"," ")
     return query
 
+#########################
+# Needed to enable Vacuuming 
+# within Psycopg2
+def vacuum(conn, table='', do='ANALYZE'):
+    old_isolation_level = conn.isolation_level
+    conn.set_isolation_level(0)
+    query = 'VACUUM ' + do
+    if table is not '':
+        query += ' ' + table
+        
+    conn.cursor().execute(query)
+    msg = conn.notices
+    conn.set_isolation_level(old_isolation_level)
+    
+    return msg
+    
