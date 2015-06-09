@@ -47,12 +47,9 @@ SELECT
 	pc.pc as pc, 
 	ST_INTERSECTION(pc.geom, ST_Union(ST_Buffer(bf.geom,0.000001))) as intersect_geom
 FROM 
-	os.pc_mapping_dim as pmd,  
 	{area}.pc_spa as pc, 
 	{area}.building_fct as bf
 WHERE 
-	pc.pc=pmd.pc
-AND 
 	ST_INTERSECTS(bf.geom, pc.geom)
 GROUP BY 
 	pc.gid, pc.pc;
@@ -70,14 +67,14 @@ ANALYZE {area}.pc_building_fct;
 -- random points.
 DROP TABLE IF EXISTS {area}.pc_transaction_cnt;
 create table {area}.pc_transaction_cnt as (
-select pmd.pc as pc, 
+select pc.pc as pc, 
 extract(year from ppf.completion_dt) as transaction_yr, 
 count(*) as transaction_cnt 
 from 
 	landreg.price_paid_fct as ppf, 
-	{area}.pc_spa as pmd 
-where ppf.pc=pmd.pc 
-group by pmd.pc, transaction_yr 
+	{area}.pc_spa as pc 
+where ppf.pc=pc.pc 
+group by pc.pc, transaction_yr 
 order by 2 desc);
 ALTER TABLE {area}.pc_transaction_cnt
   ADD CONSTRAINT pc_transaction_cnt_pidx PRIMARY KEY(pc,transaction_yr);
@@ -113,7 +110,7 @@ UPDATE {area}.pc_transaction_spa SET id=NEXTVAL('-t_pc_transaction_spa');
 
 -- --------------------------------
 -- --------------------------------
--- Run Combine_Prices_and_Points.py
+-- exec: Combine_Prices_and_Points.py
 -- --------------------------------
 -- --------------------------------
 
