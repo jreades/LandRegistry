@@ -154,6 +154,8 @@ if proceed=='y':
     
     with gzip.open(os.path.join(datroot, '-'.join([fn,'Deleted.csv.gz'])), 'r') as f:
         csv_in = csv.reader(f, delimiter='\t', quotechar='"')
+        # Skip header
+        next(csv_in)
         # While reading...
         for row in csv_in:
             # Grab tid
@@ -167,6 +169,67 @@ if proceed=='y':
 
 print "Deletions complete..."
 
+# Now let's do the changes.
+proceed = raw_input('Do you want me to update records in the price paid fact? [y/n]: ')
+if proceed=='y': 
+    
+    conn = psycopg2.connect(cn)
+    cur  = conn.cursor()
+    
+    update_ppf = utils.get_sql(os.path.join(approot,'Code','SQL','Update','Change.sql'))
+    
+    #cur.prepare(update_ppf.replace('{tid}','%s'))
+    q = update_ppf.replace("'{tid}'", '%s')
+    
+    with gzip.open(os.path.join(datroot, '-'.join([fn,'Changed.csv.gz'])), 'r') as f:
+        csv_in = csv.reader(f, delimiter='\t', quotechar='"')
+        # Skip header
+        next(csv_in)
+        # While reading...
+        for row in csv_in:
+            # Grab tid
+            tid = row[0]
+            #print update_ppf.replace('{tid}',record[0])
+            cur.execute(q,append(row[2:len(row)], [int(row[1]),tid]))
+            print tid + ': ' + cur.statusmessage
+    
+    conn.commit() 
+    
+    conn.close()
+
+print "Changes complete..."
+
+# And, finally, the bulk load
+# of new records...
+proceed = raw_input('Do you want me to add new records in the price paid fact? [y/n]: ')
+if proceed=='y': 
+    
+    conn = psycopg2.connect(cn)
+    cur  = conn.cursor()
+    
+    q = utils.get_sql(os.path.join(approot,'Code','SQL','Update','Add.sql'))
+    
+    with gzip.open(os.path.join(datroot, '-'.join([fn,'Added.csv.gz'])), 'r') as f:
+        csv_in = csv.reader(f, delimiter='\t', quotechar='"')
+        # Skip header
+        next(csv_in)
+        # While reading...
+        for row in csv_in:
+            # Grab tid
+            tid = row[0]
+            #print update_ppf.replace('{tid}',record[0])
+            cur.execute(q,row)
+            print tid + ': ' + cur.statusmessage
+    
+    conn.commit() 
+    
+    conn.close()
+
+print "Additions complete..."
+
+# Before we're done, we should vaccum
+# and analyze (vacuum full rebuilds the 
+# table from scratch)
 conn = psycopg2.connect(cn)
 utils.vacuum(conn, 'landreg.price_paid_fct')
 conn.close()
