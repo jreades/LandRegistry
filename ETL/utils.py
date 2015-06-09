@@ -28,13 +28,11 @@ def read_sql(path):
 
 #########################
 # Interpolate SQL queries 
-#
-# Would be good if you had the option to return a list 
-# of SQL queries so that you could execute each
-# in turn. That would make debugging easier.
+# into a single massive query.
 def get_sql(path, subs={'foobarbaz':None}, openc='{', closec='}'):
-    """Interpolates parameterised SQL using a dictionary expecting to find '{{var}}' 
-    in the SQL query and to have a value for each substitution."""
+    """Interpolates parameterised SQL using a dictionary expecting to find '{var}' 
+    in the SQL query and to have a value for each substitution. Returns one string 
+    no matter how many queries contained in the source file."""
     
     for k in subs:
         subs[''.join([openc,k,closec])] = str(subs[k])
@@ -42,6 +40,23 @@ def get_sql(path, subs={'foobarbaz':None}, openc='{', closec='}'):
     
     sql   = read_sql(path)
     query = multiple_replace(subs, sql).replace("\n"," ").replace("\t"," ")
+    return query
+
+#########################
+# Interpolate SQL queries 
+# into a list of queries.
+def get_sql_iterator(path, subs={'foobarbaz':None}, openc='{', closec='}'):
+    """Interpolates parameterised SQL using a dictionary expecting to find '{var}' 
+    in the SQL query and to have a value for each substitution. Returns a list of 
+    SQL queries that can be run iteratively (which may make debugging easier or 
+    avoid some issues relating to VACUUMing."""
+    
+    for k in subs:
+        subs[''.join([openc,k,closec])] = str(subs[k])
+        del subs[k]
+    
+    sql   = read_sql(path)
+    query = multiple_replace(subs, sql).replace("\n"," ").replace("\t"," ").split(';')
     return query
 
 #########################

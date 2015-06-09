@@ -73,7 +73,7 @@ count(*) as transaction_cnt
 from 
 	landreg.price_paid_fct as ppf, 
 	{area}.pc_spa as pc 
-where ppf.pc=pc.pc 
+where pc.pc=ppf.pc 
 group by pc.pc, transaction_yr 
 order by 2 desc);
 ALTER TABLE {area}.pc_transaction_cnt
@@ -81,7 +81,7 @@ ALTER TABLE {area}.pc_transaction_cnt
 
 -- And create the random points that 
 -- we now want to show
-DROP TABLE {area}.pc_transaction_spa;
+DROP TABLE IF EXISTS {area}.pc_transaction_spa;
 create table {area}.pc_transaction_spa as (
 select 
 	ptc.pc as pc, 
@@ -101,12 +101,14 @@ VACUUM ANALYZE {area}.pc_transaction_spa;
 CLUSTER {area}.pc_transaction_spa USING {area}_pc_transaction_spa_gix;
 ANALYZE {area}.pc_transaction_spa_gix;
 
--- Hmmm, what's going on here?
-DROP SEQUENCE "-t_pc_transaction_spa";
-CREATE SEQUENCE "-t_pc_transaction_spa" INCREMENT 1 MINVALUE 1 START 1 CACHE 1;
-ALTER TABLE "-t_pc_transaction_spa" OWNER TO postgres;
+-- Create a sequence for the transaction table
+-- I think we need this because of QGIS wanting
+-- a unique id on each row...
+DROP SEQUENCE IF EXISTS "-t_{area}_pc_transaction_spa";
+CREATE SEQUENCE "-t_{area}_pc_transaction_spa" INCREMENT 1 MINVALUE 1 START 1 CACHE 1;
+ALTER TABLE "-t_{area}_pc_transaction_spa" OWNER TO postgres;
 ALTER TABLE {area}.pc_transaction_spa ADD id INT UNIQUE;
-UPDATE {area}.pc_transaction_spa SET id=NEXTVAL('-t_pc_transaction_spa');
+UPDATE {area}.pc_transaction_spa SET id=NEXTVAL('-t_{area}_pc_transaction_spa');
 
 -- --------------------------------
 -- --------------------------------
