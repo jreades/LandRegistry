@@ -80,7 +80,17 @@ ALTER TABLE {area}.pc_transaction_cnt
   ADD CONSTRAINT pc_transaction_cnt_pidx PRIMARY KEY(pc,transaction_yr);
 
 -- And create the random points that 
--- we now want to show
+-- we now want to show. 
+-- ----------------
+-- ----------------
+-- Actually, we could probably just 
+-- skip the next few bits entirely 
+-- (plus the Python script!) by just
+-- creating one random point for each
+-- transaction within an appropriate
+-- postcode polygon!
+-- ----------------
+-- ----------------
 DROP TABLE IF EXISTS {area}.pc_transaction_spa;
 create table {area}.pc_transaction_spa as (
 select 
