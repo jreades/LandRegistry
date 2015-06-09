@@ -89,6 +89,23 @@ ALTER TABLE {area}.pc_transaction_cnt
 -- creating one random point for each
 -- transaction within an appropriate
 -- postcode polygon!
+CREATE TABLE {area}.pc_transaction_spa AS 
+SELECT 
+	ROW_NUMBER() OVER () AS uid, 
+	extract(year from ppf.completion_dt) as yr, 
+	ppf.transaction_id AS tid, 
+	ppf.price_int AS price, 
+	ppf.pc, 
+	ppf.property_type_cd AS type, 
+	viz.RandomPointsInPolygon(pbf.geom, 1::integer) as geom
+FROM 
+	landreg.price_paid_fct AS ppf, 
+	{area}.pc_building_fct AS pbf 
+WHERE 
+	ppf.pc=pbf.pc;
+ALTER TABLE {area}.pc_transaction_spa ADD CONSTRAINT {area}_pc_transaction_spa_pidx PRIMARY KEY(gid);
+CREATE INDEX {area}_pc_transaction_spa_gix ON {area}.pc_transaction_spa USING GIST (geom);
+CREATE INDEX {area}_pc_transaction_spa_idx ON {area}.pc_transaction_spa (pc);
 -- ----------------
 -- ----------------
 DROP TABLE IF EXISTS {area}.pc_transaction_spa;
