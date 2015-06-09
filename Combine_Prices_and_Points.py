@@ -87,6 +87,12 @@ for y in range(1995, 2014):
 
 	print 'There were {} errors in year {}'.format(errors, y)
 
-with open("pp_transaction_fct.csv", 'w') as fp: 
+with open(os.path.join(datroot,'.'join(['pp_transaction_fct','csv'])), 'w') as fp: 
 	c = csv.writer(fp, delimiter=',')
 	c.writerows(dataset)
+
+q = " ".join(["\copy","{area}.pp_transaction_fct","FROM","".join(["'",os.path.join(datroot,'.'.join(['pp_transaction_fct','csv'])),"'"]),"WITH","DELIMITER ','"])
+subprocess.call([''.join([psql_path,'psql']),'-h',config['host'],'-d',config['db'],'-U',config['user'],'-w','-p',config['port'],'-c',q])
+
+# And now we can tidy up the last large files
+os.remove(os.path.join(datroot, '.'.join(['pp_transaction_fct','csv'])))
