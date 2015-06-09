@@ -6,11 +6,12 @@ within the OS Vector Map building outlines
 """
 print(__doc__)
 
+import psycopg2
 import csv
 from os import getcwd
 from os import chdir
 
-import psycopg2
+area = 'manchester'
 
 #sys.path.append('/Library/PostgreSQL/9.3/bin/')
 psql_path = '/Library/PostgreSQL/9.3/bin/'
@@ -47,12 +48,12 @@ for y in range(1995, 2014):
 	cursor = conn.cursor()
 
 	# execute our Query
-	cursor.execute("select pc, id from viz.pc_transaction_spa where yr={}".format(y))
+	cursor.execute("select pc, id from {area}.pc_transaction_spa where yr={}".replace('{area}',area).format(y))
 
 	# retrieve the records from the database
 	locations = cursor.fetchall()
 
-	#cursor.execute("select transaction_id, price_int, ppf.pc as pc from landreg.price_paid_fct as ppf, os.pc_mapping_dim as pmd where extract(year from ppf.completion_dt)={} and ppf.pc=pmd.pc and pmd.region='London'".format(y))
+	cursor.execute("SELECT transaction_id, price_int, ppf.pc as pc FROM landreg.price_paid_fct AS ppf, {area}.pc_spa AS pc WHERE extract(year from ppf.completion_dt)={} and ppf.pc=pc.pc".replace('{area}',area).format(y))
 
 	transactions = cursor.fetchall()
 
@@ -91,7 +92,7 @@ with open(os.path.join(datroot,'.'join(['pp_transaction_fct','csv'])), 'w') as f
 	c = csv.writer(fp, delimiter=',')
 	c.writerows(dataset)
 
-q = " ".join(["\copy","{area}.pp_transaction_fct","FROM","".join(["'",os.path.join(datroot,'.'.join(['pp_transaction_fct','csv'])),"'"]),"WITH","DELIMITER ','"])
+q = " ".join(["\copy","{area}.pp_transaction_fct".replace("{area}",area),"FROM","".join(["'",os.path.join(datroot,'.'.join(['pp_transaction_fct','csv'])),"'"]),"WITH","DELIMITER ','"])
 subprocess.call([''.join([psql_path,'psql']),'-h',config['host'],'-d',config['db'],'-U',config['user'],'-w','-p',config['port'],'-c',q])
 
 # And now we can tidy up the last large files
