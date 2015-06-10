@@ -1,20 +1,15 @@
 """
 =========================================================
-Create views for each year of data in Hex Bin format
-Specify the resolution so ensure that the right bin
-format is used.
+Create views for each year of data
 =========================================================
 """
 print(__doc__)
 
-import numpy as np
 import psycopg2
 import csv
-import re
-import os
 
-# What size grid
-resolution = 750
+region = 'London'
+reg    = 'ldn'
 
 #sys.path.append('/Library/PostgreSQL/9.3/bin/')
 psql_path = '/Library/PostgreSQL/9.3/bin/'
@@ -32,33 +27,31 @@ approot = os.chdir(root.replace('/Code/ETL',''))
 etlroot = os.path.join(approot,'Code','ETL')
 datroot = os.path.join(approot,'Data')
 
+# Load the Postgres conf file
+config = {}
+with open(os.path.join(approot,'Code','.dbconfig')) as myfile:
+    for line in myfile:
+        name, var = line.partition("=")[::2]
+        config[name.strip()] = var.strip().replace("'","")
+
+cn   = "host='{0}' dbname='{1}' user='{2}' password='{3}' port={4}".format(config['host'], config['db'], config['user'], config['pwd'], config['port'])
+
 # Grab the SQL scripts that need to run
-subs = {'{resolution}': '{}m'.format(resolution)}
+q = utils.get_sql('Standard.sql', {'region': region, 'reg', reg} )
 
-q = ""
-with open(, 'r') as fh: 
-	q = fh.read()
-
-
-for y in range(1996, 2016): 
+for y in range(1996, 2013): 
 
 	print("Year {}".format(y))
-	subs['{year}'] = str(y)
 
 	# get a connection, if a connect cannot be made an exception will be raised here
 	conn = psycopg2.connect(cn)
 
 	# conn.cursor will return a cursor object, you can use this cursor to perform queries
 	cursor = conn.cursor()
-	
-	utils.get_sql(os.path.join(approot,"SQL","Views","HexBinned.sql"), {'year': y, 'resolution': resolution })
-	
+
 	# execute our Query
-	print q
-	#cursor.execute(q))
+	cursor.execute(q.replace("{year}",str(y)))
 	
 	conn.commit()
 	
-	conn.close()
-
-
+conn.close()

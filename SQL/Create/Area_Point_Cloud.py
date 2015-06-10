@@ -7,6 +7,7 @@ within the OS Vector Map building outlines
 print(__doc__)
 
 import psycopg2
+import utils
 import csv
 from os import getcwd
 from os import chdir
@@ -40,7 +41,7 @@ cn   = "host='{0}' dbname='{1}' user='{2}' password='{3}' port={4}".format(confi
 
 conn = psycopg2.connect(cn)
 
-queries = get_sql_iterator(os.path.join(approot,'SQL','Create','Area_Point_Cloud.sql'))
+queries = utils.get_sql_iterator(os.path.join(approot,'SQL','Create','Area_Point_Cloud.sql'))
 
 # conn.cursor will return a cursor object, you can use this cursor to perform queries
 cursor = conn.cursor()

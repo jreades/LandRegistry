@@ -1,5 +1,5 @@
-DROP MATERIALIZED VIEW IF EXISTS viz.ldn{year}; 
-CREATE MATERIALIZED VIEW viz.ldn{year} AS 
+DROP MATERIALIZED VIEW IF EXISTS viz.{reg}{year}; 
+CREATE MATERIALIZED VIEW viz.{reg}{year} AS 
 SELECT pp.uid,
 	pp.yr,
 	pp.tid,
@@ -15,8 +15,8 @@ SELECT pp.uid,
 WHERE pp.yr = {year} 
 	AND pp.yr = lf.year 
 	AND lf.metric_nm::text = 'Median'::text 
-	AND lf.region_nm::text = 'London'::text;
-ALTER TABLE viz.ldn{year}
+	AND lf.region_nm::text = '{region}'::text;
+ALTER TABLE viz.{reg}{year}
   OWNER TO postgres;
-GRANT SELECT ON TABLE viz.ldn{year} TO public;
-GRANT ALL ON TABLE viz.ldn{year} TO postgres;
+GRANT SELECT ON TABLE viz.{reg}{year} TO public;
+GRANT ALL ON TABLE viz.{reg}{year} TO postgres;
