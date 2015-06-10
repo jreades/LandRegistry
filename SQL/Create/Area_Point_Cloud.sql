@@ -81,14 +81,7 @@ ALTER TABLE {area}.pc_transaction_cnt
 
 -- And create the random points that 
 -- we now want to show. 
--- ----------------
--- ----------------
--- Actually, we could probably just 
--- skip the next few bits entirely 
--- (plus the Python script!) by just
--- creating one random point for each
--- transaction within an appropriate
--- postcode polygon!
+DROP TABLE IF EXISTS {area}.pc_transaction_spa;
 CREATE TABLE {area}.pc_transaction_spa AS 
 SELECT 
 	ROW_NUMBER() OVER () AS uid, 
@@ -103,70 +96,9 @@ FROM
 	{area}.pc_building_fct AS pbf 
 WHERE 
 	ppf.pc=pbf.pc;
-ALTER TABLE {area}.pc_transaction_spa ADD CONSTRAINT {area}_pc_transaction_spa_pidx PRIMARY KEY(gid);
+ALTER TABLE {area}.pc_transaction_spa ADD CONSTRAINT {area}_pc_transaction_spa_pidx PRIMARY KEY(uid);
 CREATE INDEX {area}_pc_transaction_spa_gix ON {area}.pc_transaction_spa USING GIST (geom);
 CREATE INDEX {area}_pc_transaction_spa_idx ON {area}.pc_transaction_spa (pc);
--- ----------------
--- ----------------
-DROP TABLE IF EXISTS {area}.pc_transaction_spa;
-create table {area}.pc_transaction_spa as (
-select 
-	ptc.pc as pc, 
-	ptc.transaction_yr as yr, 
-	viz.RandomPointsInPolygon(pbf.geom, CAST(ptc.transaction_cnt AS integer)) as geom   
-from 
-	{area}.pc_transaction_cnt as ptc, 
-	{area}.pc_building_fct as pbf 
-where 
-	ptc.pc=pbf.pc  
-group by 
-	ptc.pc, yr, geom
-);
-CREATE INDEX {area}_pc_transaction_spa_gix ON {area}.pc_transaction_spa USING GIST (geom);
-CREATE INDEX {area}_pc_transaction_spa_idx ON {area}.pc_transaction_spa (pc);
-VACUUM ANALYZE {area}.pc_transaction_spa;
+ANALYZE {area}.pc_transaction_spa;
 CLUSTER {area}.pc_transaction_spa USING {area}_pc_transaction_spa_gix;
-ANALYZE {area}.pc_transaction_spa_gix;
-
--- Create a sequence for the transaction table
--- I think we need this because of QGIS wanting
--- a unique id on each row...
-DROP SEQUENCE IF EXISTS "-t_{area}_pc_transaction_spa";
-CREATE SEQUENCE "-t_{area}_pc_transaction_spa" INCREMENT 1 MINVALUE 1 START 1 CACHE 1;
-ALTER TABLE "-t_{area}_pc_transaction_spa" OWNER TO postgres;
-ALTER TABLE {area}.pc_transaction_spa ADD id INT UNIQUE;
-UPDATE {area}.pc_transaction_spa SET id=NEXTVAL('-t_{area}_pc_transaction_spa');
-
--- --------------------------------
--- --------------------------------
--- exec: Combine_Prices_and_Points.py
--- --------------------------------
--- --------------------------------
-
-TRUNCATE TABLE {area}.pp_transaction_spa;
-INSERT INTO {area}.pp_transaction_spa 
-SELECT 
-	pf.id AS uid, 
-	pf.yr, 
-	pf.tid, 
-	pf.price_int AS price,
-	pf.price_int * 0.15 AS downpayment, 
-	pf.price_int-pf.price_int*0.15 AS balance,  
-	pf.pc AS postcode, 
-	ppf.property_type_cd AS type, 
-	ps.geom AS geom
-FROM 
-	{area}.pp_transaction_fct AS pf, 
-	{area}.pc_transaction_spa AS ps, 
-	landreg.price_paid_fct AS ppf 
-WHERE 
-	pf.id=ps.id
-AND 
-	pf.tid=ppf.transaction_id;
-
-ALTER TABLE {area}.pp_transaction_spa ADD CONSTRAINT {area}_pp_transaction_spa_pidx PRIMARY KEY(uid);
-CREATE INDEX {area}_pp_transaction_spa_gix ON {area}.pp_transaction_spa USING GIST (geom);
-CREATE INDEX {area}_pp_transaction_spa_idx ON {area}.pp_transaction_spa (pc);
-VACUUM ANALYZE {area}.pp_transaction_spa;
-CLUSTER {area}.pp_transaction_spa USING {area}_pp_transaction_spa_gix;
-ANALYZE {area}_pp_transaction_spa_gix;
+VACUUM ANALYZE {area}.pc_transaction_spa_gix;
