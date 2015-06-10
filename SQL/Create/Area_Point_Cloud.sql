@@ -80,9 +80,10 @@ ALTER TABLE {area}.pc_transaction_cnt
   ADD CONSTRAINT pc_transaction_cnt_pidx PRIMARY KEY(pc,transaction_yr);
 
 -- And create the random points that 
--- we now want to show. 
-DROP TABLE IF EXISTS {area}.pc_transaction_spa;
-CREATE TABLE {area}.pc_transaction_spa AS 
+-- we now want to show. About 1.5 hours
+-- to complete.
+DROP TABLE IF EXISTS {area}.pp_transaction_spa;
+CREATE TABLE {area}.pp_transaction_spa AS 
 SELECT 
 	ROW_NUMBER() OVER () AS uid, 
 	extract(year from ppf.completion_dt) as yr, 
@@ -96,9 +97,9 @@ FROM
 	{area}.pc_building_fct AS pbf 
 WHERE 
 	ppf.pc=pbf.pc;
-ALTER TABLE {area}.pc_transaction_spa ADD CONSTRAINT {area}_pc_transaction_spa_pidx PRIMARY KEY(uid);
-CREATE INDEX {area}_pc_transaction_spa_gix ON {area}.pc_transaction_spa USING GIST (geom);
-CREATE INDEX {area}_pc_transaction_spa_idx ON {area}.pc_transaction_spa (pc);
-ANALYZE {area}.pc_transaction_spa;
-CLUSTER {area}.pc_transaction_spa USING {area}_pc_transaction_spa_gix;
-VACUUM ANALYZE {area}.pc_transaction_spa_gix;
+ALTER TABLE {area}.pp_transaction_spa ADD CONSTRAINT {area}_pp_transaction_spa_pidx PRIMARY KEY(uid);
+CREATE INDEX {area}_pp_transaction_spa_gix ON {area}.pp_transaction_spa USING GIST (geom);
+CREATE INDEX {area}_pp_transaction_spa_idx ON {area}.pp_transaction_spa (pc);
+ANALYZE {area}.pp_transaction_spa;
+CLUSTER {area}.pp_transaction_spa USING {area}_pp_transaction_spa_gix;
+VACUUM ANALYZE {area}.pp_transaction_spa_gix;

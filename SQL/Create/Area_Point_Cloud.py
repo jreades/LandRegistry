@@ -7,10 +7,9 @@ within the OS Vector Map building outlines
 print(__doc__)
 
 import psycopg2
-import utils
 import csv
+import os
 from os import getcwd
-from os import chdir
 
 area = 'manchester'
 
@@ -25,10 +24,13 @@ except NameError:  # We are the main py2exe script, not a module
     import sys
     root = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-os.chdir(root.replace('/Code/ETL',''))
-approot = os.chdir(root.replace('/Code/ETL',''))
+approot = root.split('/Code')[0]
 etlroot = os.path.join(approot,'Code','ETL')
 datroot = os.path.join(approot,'Data')
+os.chdir(approot)
+
+sys.path.append(etlroot)
+import utils
 
 # Load the Postgres conf file
 config = {}

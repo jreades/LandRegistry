@@ -7,11 +7,7 @@ format is used.
 """
 print(__doc__)
 
-import numpy as np
 import psycopg2
-#import pydot
-import csv
-import re
 import os
 
 # See also need to configure region/region_nm
@@ -31,24 +27,22 @@ except NameError:  # We are the main py2exe script, not a module
     import sys
     root = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-os.chdir(root.replace('/Code/ETL',''))
-approot = os.chdir(root.replace('/Code/ETL',''))
+approot = root.split('/Code')[0]
 etlroot = os.path.join(approot,'Code','ETL')
 datroot = os.path.join(approot,'Data')
+os.chdir(approot)
 
-def multiple_replace(dict, text): 
+sys.path.append(etlroot)
+import utils
 
-  """ Replace in 'text' all occurences of any key in the given
-  dictionary by its corresponding value.  Returns the new tring.""" 
+# Load the Postgres conf file
+config = {}
+with open(os.path.join(approot,'Code','.dbconfig')) as myfile:
+    for line in myfile:
+        name, var = line.partition("=")[::2]
+        config[name.strip()] = var.strip().replace("'","")
 
-  # Create a regular expression  from the dictionary keys
-  regex = re.compile("(%s)" % "|".join(map(re.escape, dict.keys())))
-
-  # For each match, look-up corresponding value in dictionary
-  return regex.sub(lambda mo: dict[mo.string[mo.start():mo.end()]], text) 
-
-# Grab the SQL scripts that need to run
-subs = {'{resolution}': '{}m'.format(resolution)}
+cn   = "host='{0}' dbname='{1}' user='{2}' password='{3}' port={4}".format(config['host'], config['db'], config['user'], config['pwd'], config['port'])
 
 conn = psycopg2.connect(cn)
 
@@ -64,25 +58,23 @@ conn.close()
 
 for r in range(0, len(rows)): 
     
-	region = rows[r][0]
-  print(region)
+    region = rows[r][0]
+    print(region)
 
-  for y in range(1996, 2016, 4): 
+    for y in range(1996, 2016, 4): 
 
-		# get a connection, if a connect cannot be made an exception will be raised here
-		conn = psycopg2.connect(cn)
+	# get a connection, if a connect cannot be made an exception will be raised here
+	conn = psycopg2.connect(cn)
 
-		# conn.cursor will return a cursor object, you can use this cursor to perform queries
-		cursor = conn.cursor()
+	# conn.cursor will return a cursor object, you can use this cursor to perform queries
+	cursor = conn.cursor()
 		
-		q = utils.get_sql(os.path.join(approot,"SQL","Views","RegionalHexBinned.sql"), {'resolution': resolution, 'year': y, 'region_nm': region, 'region': region.replace(" ","_").replace("-","_")})
+	q = utils.get_sql(os.path.join(approot,"SQL","Views","RegionalHexBinned.sql"), {'resolution': resolution, 'year': y, 'region_nm': region, 'region': region.replace(" ","_").replace("-","_")})
 
-		# execute our Query
-		print q
-		#cursor.execute(q)
+	# execute our Query
+	print q
+	#cursor.execute(q)
 	
-		conn.commit()
+	conn.commit()
 	
-		conn.close()
-
-
+	conn.close()

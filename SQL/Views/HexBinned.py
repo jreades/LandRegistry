@@ -7,7 +7,6 @@ format is used.
 """
 print(__doc__)
 
-import numpy as np
 import psycopg2
 import csv
 import re
@@ -27,10 +26,13 @@ except NameError:  # We are the main py2exe script, not a module
     import sys
     root = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-os.chdir(root.replace('/Code/ETL',''))
-approot = os.chdir(root.replace('/Code/ETL',''))
+approot = root.split('/Code')[0]
 etlroot = os.path.join(approot,'Code','ETL')
 datroot = os.path.join(approot,'Data')
+os.chdir(approot)
+
+sys.path.append(etlroot)
+import utils
 
 # Grab the SQL scripts that need to run
 subs = {'{resolution}': '{}m'.format(resolution)}

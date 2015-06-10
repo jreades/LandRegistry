@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os.path
 import re
 
@@ -28,18 +29,20 @@ def read_sql(path):
 
 #########################
 # Interpolate SQL queries 
-# into a single massive query.
+# into a single massive query.
 def get_sql(path, subs={'foobarbaz':None}, openc='{', closec='}'):
     """Interpolates parameterised SQL using a dictionary expecting to find '{var}' 
     in the SQL query and to have a value for each substitution. Returns one string 
     no matter how many queries contained in the source file."""
     
+    replacements = dict()
+    
     for k in subs:
-        subs[''.join([openc,k,closec])] = str(subs[k])
-        del subs[k]
+        replacements[''.join([openc,k,closec])] = str(subs[k])
     
     sql   = read_sql(path)
-    query = multiple_replace(subs, sql).replace("\n"," ").replace("\t"," ")
+    
+    query = multiple_replace(replacements, sql).replace("\n"," ").replace("\t"," ")
     return query
 
 #########################
@@ -51,12 +54,13 @@ def get_sql_iterator(path, subs={'foobarbaz':None}, openc='{', closec='}'):
     SQL queries that can be run iteratively (which may make debugging easier or 
     avoid some issues relating to VACUUMing."""
     
+    replacements = dict()
+    
     for k in subs:
-        subs[''.join([openc,k,closec])] = str(subs[k])
-        del subs[k]
+        replacements[''.join([openc,k,closec])] = str(subs[k])
     
     sql   = read_sql(path)
-    query = multiple_replace(subs, sql).replace("\n"," ").replace("\t"," ").split(';')
+    query = multiple_replace(replacements, sql).replace("\n"," ").replace("\t"," ").split(';')
     return query
 
 #########################
