@@ -1,7 +1,7 @@
 """
 =========================================================
-Extract full Land Registry Price Paid data set from the web site  
-to update the core and aggregate tables in the data warehouse.
+Extract the full Land Registry Price Paid data set from the web site  
+to populate the core and aggregate tables in the data warehouse.
 In the long run, this will be able to create schemas and 
 tables as well as update them, but this is a start.
 =========================================================
@@ -27,42 +27,28 @@ print(__doc__)
 # 2. $ sudo mv /usr/lib/libpq.5.dylib /usr/lib/libpq.5.dylib.old  
 # 3. $ sudo ln -s /Library/PostgreSQL/9.3/lib/libpq.5.dylib /usr/lib
 
-import numpy as np
-import pylab as pl
 import psycopg2
 import subprocess
-import pydot
 import datetime
-import urllib
-import gzip
-import csv
 import os
-import re
+import petl as etl
 import utils
+
+import sys
+
+reload(sys)  
+sys.setdefaultencoding('utf8')
+
+from petl import look
 
 from distutils import spawn
 from dateutil.relativedelta import relativedelta
 
+# Place to store the data locally
+fn   = '-'.join(["pp","complete"]) #,str(today.year),str(today.month).zfill(2)])
+
 #sys.path.append('/Library/PostgreSQL/9.3/bin/')
 psql_path = '/Library/PostgreSQL/9.3/bin/'
-
-def which(program):
-    import os
-    def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
-
-    fpath, fname = os.path.split(program)
-    if fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
-
-    return None
 
 # Configure the application with the appropriate
 # details
@@ -72,10 +58,10 @@ except NameError:  # We are the main py2exe script, not a module
     import sys
     root = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-os.chdir(root.replace('/Code/ETL',''))
-approot = os.chdir(root.replace('/Code/ETL',''))
+approot = root.replace('/Code/ETL','')
 etlroot = os.path.join(approot,'Code','ETL')
 datroot = os.path.join(approot,'Data')
+os.chdir(approot)
 
 # Load the Postgres conf file
 config = {}
@@ -88,11 +74,6 @@ cn   = "host='{0}' dbname='{1}' user='{2}' password='{3}' port={4}".format(confi
 
 # Where is the data stored remotely?
 lrURL = "http://publicdata.landregistry.gov.uk/market-trend-data/price-paid-data/b/pp-complete.csv"
-
-# Set the default filename that
-# we'll be working with until it's
-# all in the database
-fn    = '-'.join(["pp","complete"])
 
 ############################
 ############################
@@ -160,79 +141,59 @@ if not os.path.isdir(datroot):
     
 if not os.path.exists(os.path.join(datroot, '.'.join([fn,'csv','gz']))):
     print("Can't find local copy of " + '.'.join([fn,'csv','gz']) + " so will go ahead and download...")
-    rf = urllib.URLopener()
-    rf.retrieve(lrURL, os.path.join(datroot, '.'.join([fn,'csv'])))
-    print("Downloaded, starting on compression...")
+    # Create the source and give it headers since Land Registry don't
+    src  = etl.pushheader(etl.io.fromcsv(lrURL,'utf-8'), ['transaction_id','price_int','completion_dt','pc','property_type_cd','new_build_cd','tenure_cd','paon','saon','street_nm','locality_nm','town_nm','authority_nm','county_nm','status_cd'])
+    # Write to a local file
+    etl.csv.tocsv(src, source=os.path.join(datroot,'.'.join([fn,'tmp','csv','gz'])), encoding='utf8', write_header=True)
+    print "File saved locally to avoid too much in memory..."
     
-    # After downloading we can
-    # compress the raw file	
-    gz_out = gzip.open(os.path.join(datroot, '.'.join([fn,'csv','gz'])), 'wb')
-    fh_in  = open(os.path.join(datroot, '.'.join([fn,'csv'])), 'rb')
-    gz_out.writelines(fh_in)
-    fh_in.close()
-    gz_out.close()
-    print("Compressed via gzip.")
+    del(src)
+    
+    # Tidy up some of the fields so that they're db-friendly
+    tidy = etl.io.fromcsv(os.path.join(datroot,'.'.join([fn,'tmp','csv','gz']))).convert('transaction_id','replace','{','').convert('transaction_id','replace','}','').convert('price_int',int).convert('completion_dt',lambda v: datetime.datetime.strptime(v, "%Y-%m-%d 00:00").date()).sort('completion_dt')
+
+    # Summarise what's there (helpful for tracking
+    # changes to the format, especially the status codes).
+    print "There are {} rows of data.".format(etl.util.counting.nrows(tidy))
+    counts = etl.util.counting.valuecounts(tidy, 'status_cd')
+    print "I found the following record types and counts:"
+    print counts
+    confs  = etl.conflicts(tidy, key='transaction_id')
+    if confs.nrows() > 0:
+        print "I found the following conflicts:"
+        print confs
+    else:
+        print "I found no conflicting Transaction IDs"  
+
+    proceed = raw_input('Given these stats should I proceed with the processing [y/n]: ')
+    if proceed=='y': 
+        print("OK, will load the data.")
+    else:
+        print("OK, stopping.")
+        exit()
+
+    etl.csv.totsv(tidy, source=os.path.join(datroot,'.'.join([fn,'.csv'])), encoding='utf-8', write_header=True)
+    print "Foo!"
+    
+    os.remove(os.path.join(datroot,'.'.join([fn,'tmp','.csv.gz'])))
     
 else:
     print("Skipping download as ??? already exists.".replace("???",'.'.join([fn,'csv','gz'])))
-
-
-if not os.path.exists(os.path.join(datroot, '.'.join([fn,'formatted','csv']))):
-    afh = open(os.path.join(datroot, '.'.join([fn,'added','csv'])), 'w+')
-    added = csv.writer(afh, delimiter="|", quotechar='"', quoting=csv.QUOTE_MINIMAL)
-
-    with gzip.open(os.path.join(datroot, '.'.join([fn,'csv','gz'])), 'rb') as fh_in:
-        csv_in = csv.reader(fh_in, delimiter=',', quotechar='"')
-        # While reading...
-        for row in csv_in:
-	   # Strip off { and } from identifier
-	   row[0] = row[0].replace("{","").replace("}","")
-	   # What type or record is it?
-           r_type = row[-1]
-	   # Skip record if not greater
-	   if r_type == 'A':
-	       # Added
-	       # Note: there's no point filtering out
-	       # duplicates based on the date of the
-	       # last transaction because old records
-	       # show up all the time.
-	       added.writerow(row)
-	   elif r_type == 'C':
-	       # Changed
-	       print("Found changed record ('C'), which shouldn't be in full Price Paid file: " + row[0])
-	       exit()
-	   elif r_type == 'D':
-	       # Deleted
-	       print("Found deleted record ('D'), which shouldn't be in full Price Paid file: " + row[0])
-	       exit()
-	   else:
-	       print("Unexpected record type ('" + r_type + "') in full Price Paid file: " + row[0])
-	       exit();
-
-    afh.flush()
-    afh.close()
     
-    # Remove weird 2-byte chars before loading into PostgreSQL
-#    os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(localPath, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','-o',os.path.join(localPath, '.'.join([fn,'formatted','csv'])) ]))
-    try:
-        os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(datroot, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','|','/usr/bin/uniq','>',os.path.join(datroot, '.'.join([fn,'formatted','csv'])) ]))
+# Remove weird 2-byte chars before loading into PostgreSQL
+# os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(localPath, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','-o',os.path.join(localPath, '.'.join([fn,'formatted','csv'])) ]))
+try:
+    #os.system(' '.join(["iconv","-f","UTF-8","-c","-t","ascii//TRANSLIT","<",os.path.join(datroot, '.'.join([fn,'added','csv'])),'|','/usr/bin/sort','-t','"|"','-k 3,3','|','/usr/bin/uniq','>',os.path.join(datroot, '.'.join([fn,'formatted','csv'])) ]))
     
-        # Tidy up
-        os.remove(os.path.join(datroot, '.'.join([fn,'added','csv'])))
-        os.remove(os.path.join(datroot, '.'.join([fn,'csv'])))
-    except: 
-        e = sys.exc_info()[0]
-        print("Possible problem fixing 2-byte characters or tidying up")
-        print e
+    # Tidy up
+    #os.remove(os.path.join(datroot, '.'.join([fn,'added','csv'])))
+    #os.remove(os.path.join(datroot, '.'.join([fn,'csv'])))
+    pass
+except: 
+    e = sys.exc_info()[0]
+    print("Possible problem fixing 2-byte characters or tidying up")
+    print e
     
-else:
-    print("Found existing copy of ???".replace("???",'.'.join([fn,'formatted','csv'])))
-    proceed = raw_input('Do you want me to overwrite this? [y/n]: ')
-    if proceed=='y':
-        print("For safety, you need to delete this manually before I can do anything")
-        exit()
-    else:
-        print("Great, will go ahead using the existing file")
 
 # Update user
 print("Have finished pre-processing data. Ready to load into Postgres DB.")
@@ -251,7 +212,7 @@ print("Have finished pre-processing data. Ready to load into Postgres DB.")
 # a permissions issue (COPY runs as the 
 # server, while the psql \copy runs as
 # the local user).
-q = " ".join(["\copy","landreg.loader_fct","FROM","".join(["'",os.path.join(datroot,'.'.join([fn,'formatted','csv'])),"'"]),"WITH","DELIMITER '|'"])
+q = " ".join(["\copy","landreg.loader_fct","FROM","".join(["'",os.path.join(datroot,'.'.join([fn,'csv'])),"'"]),"WITH","DELIMITER '\t'"])
 subprocess.call([''.join([psql_path,'psql']),'-h',config['host'],'-d',config['db'],'-U',config['user'],'-w','-p',config['port'],'-c',q])
 
 # And now we can tidy up the last large files
@@ -271,7 +232,7 @@ os.remove(os.path.join('tmp','table.csv'))
 # big one to do, so try to avoid re-running
 # this unless absolutely necessary.
 conn = psycopg2.connect(cn)
-update_ppf = get_sql(os.path.join(approot,'Code','SQL','Load','Full.sql'))
+update_ppf = utils.get_sql(os.path.join(approot,'Code','SQL','Load','Full.sql'))
 cursor = conn.cursor()
 proceed = raw_input('Do you want me to overwrite the entire price paid fact? [y/n]: ')
 if proceed=='y':

@@ -1,9 +1,7 @@
 """
 =========================================================
-NOT WORKING YET. STILL IN PROCESS OF BEING MIGRATED.
-WILL BE WORKING ON FULL REFRESH FIRST.
-Extract a Land Registry data from the web site and 
-update the core and aggregate tables in the 'warehouse'
+Extract a Land Registry monthly update file from the web site  
+to update the core and aggregate tables in the 'warehouse'
 =========================================================
 """
 print(__doc__)
