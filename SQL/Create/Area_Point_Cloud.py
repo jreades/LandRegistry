@@ -1,21 +1,18 @@
 """
 =========================================================
-Create views for each year of data in Hex Bin format
-Specify the resolution so ensure that the right bin
-format is used.
+Append price paid data to randomly-generated data points
+within the OS Vector Map building outlines
 =========================================================
 """
 print(__doc__)
 
 import psycopg2
+import csv
 import os
+from os import getcwd
 
-# See also need to configure region/region_nm
-# below for the queries to run
-resolution = 750
+area = 'manchester'
 
-# The default string to connect to 
-# Postgres database
 #sys.path.append('/Library/PostgreSQL/9.3/bin/')
 psql_path = '/Library/PostgreSQL/9.3/bin/'
 
@@ -46,35 +43,19 @@ cn   = "host='{0}' dbname='{1}' user='{2}' password='{3}' port={4}".format(confi
 
 conn = psycopg2.connect(cn)
 
+queries = utils.get_sql_iterator(os.path.join(approot,'SQL','Create','Area_Point_Cloud.sql'))
+
 # conn.cursor will return a cursor object, you can use this cursor to perform queries
 cursor = conn.cursor()
 
-# execute our Query
-cursor.execute("SELECT DISTINCT(initcap(region_nm)) FROM inflation.hh_income_fct WHERE region_nm NOT IN ('All households4','Northern Ireland','Scotland')")
-#cursor.execute("SELECT distinct(region_nm) FROM inflation.hh_income_fct WHERE region_nm LIKE 'Yorkshire%'")
-rows = cursor.fetchall()
+for q in queries: 
 	
-conn.close()
-
-for r in range(0, len(rows)): 
-    
-    region = rows[r][0]
-    print(region)
-
-    for y in range(1996, 2016, 4): 
-
-	# get a connection, if a connect cannot be made an exception will be raised here
-	conn = psycopg2.connect(cn)
-
-	# conn.cursor will return a cursor object, you can use this cursor to perform queries
-	cursor = conn.cursor()
-		
-	q = utils.get_sql(os.path.join(approot,"SQL","Views","RegionalHexBinned.sql"), {'resolution': resolution, 'year': y, 'region_nm': region, 'region': region.replace(" ","_").replace("-","_")})
-
 	# execute our Query
-	print q
+	print("Executing query: " + q)
 	#cursor.execute(q)
+	print("     Done.")
 	
-	conn.commit()
-	
-	conn.close()
+
+conn.commit()
+
+conn.close()
